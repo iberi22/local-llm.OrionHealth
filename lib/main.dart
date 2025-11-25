@@ -7,9 +7,12 @@ import 'features/local_agent/infrastructure/llm_service.dart';
 import 'features/local_agent/presentation/chat_page.dart';
 import 'features/user_profile/presentation/pages/user_profile_page.dart';
 
+import 'package:isar_agent_memory/isar_agent_memory.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await configureDependencies();
+  await getIt<MemoryGraph>().initialize();
   runApp(const MyApp());
 }
 

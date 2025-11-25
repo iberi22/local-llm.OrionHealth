@@ -611,11 +611,9 @@ packages:
   isar_agent_memory:
     dependency: "direct main"
     description:
-      path: "."
-      ref: main
-      resolved-ref: baed4ae1d3ec542a0606a591942d9a3e313cc808
-      url: "https://github.com/iberi22/isar_agent_memory.git"
-    source: git
+      path: "packages/isar_agent_memory"
+      relative: true
+    source: path
     version: "0.3.0"
   isar_flutter_libs:
     dependency: "direct main"

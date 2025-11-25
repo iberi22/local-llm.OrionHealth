@@ -4,6 +4,8 @@ import 'package:path_provider/path_provider.dart';
 import '../../features/user_profile/domain/entities/user_profile.dart';
 import '../../features/local_agent/domain/chat_message.dart';
 import '../../features/health_record/domain/entities/medical_record.dart';
+import '../../features/health_report/domain/entities/health_report.dart';
+import 'package:isar_agent_memory/isar_agent_memory.dart';
 
 @module
 abstract class DatabaseModule {
@@ -11,7 +13,7 @@ abstract class DatabaseModule {
   Future<Isar> get isar async {
     final dir = await getApplicationDocumentsDirectory();
     return Isar.open(
-      [UserProfileSchema, ChatMessageSchema, MedicalRecordSchema],
+      [UserProfileSchema, ChatMessageSchema, MedicalRecordSchema, MemoryNodeSchema, MemoryEdgeSchema, HealthReportSchema],
       directory: dir.path,
     );
   }

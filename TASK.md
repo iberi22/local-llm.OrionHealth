@@ -52,6 +52,14 @@ Para evitar conflictos de merge, el trabajo se divide en 3 pistas independientes
 - [x] **C-02**: Servicio de Infraestructura: `LlmInferenceService` (Stub inicial o integración ONNX). _(MockLlmService implementado)_
 - [x] **C-03**: Lógica RAG: Definir interfaz para búsqueda de vectores.
 - [x] **C-04**: UI: Chat Interface con soporte para Markdown y Streaming. _(ChatPage completado)_
+-
+- ### 🛤️ Pista D: Reportes y Planes (Agente 4)
+-
+- **Directorios Permitidos:** `lib/features/health_report/`
+-
+- - [ ] **D-01**: Feature `health_report`: Entidad `HealthReport` (Markdown content).
+- - [ ] **D-02**: Servicio de Generación de Reportes (Mock/LLM).
+- - [ ] **D-03**: UI: Pantalla de Visualización de Reportes.
 
 ---
 
@@ -61,7 +69,7 @@ _Tareas que se realizan una vez las 3 pistas convergen._
 
 - [x] **I-01**: Registrar `HealthRecordRepository` y `LlmService` en el DI (`injection.dart`).
 - [x] **I-02**: Añadir rutas de navegación en `main.dart` o `app_router.dart`.
-- [ ] **I-03**: Conectar el RAG (Agente C) con la base de datos de Registros (Agente B).
+- [x] **I-03**: Conectar el RAG (Agente C) con la base de datos de Registros (Agente B).
 
 ---
 

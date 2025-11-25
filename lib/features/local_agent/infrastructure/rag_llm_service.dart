@@ -1,0 +1,34 @@
+import 'package:injectable/injectable.dart';
+import 'package:orionhealth_health/features/local_agent/domain/services/vector_store_service.dart';
+import 'package:orionhealth_health/features/local_agent/infrastructure/llm_service.dart';
+
+@LazySingleton(as: LlmService)
+class RagLlmService implements LlmService {
+  final VectorStoreService _vectorStoreService;
+
+  RagLlmService(this._vectorStoreService);
+
+  @override
+  Stream<String> generate(String prompt) async* {
+    // 1. Retrieve relevant context
+    final contextDocs = await _vectorStoreService.search(prompt);
+
+    String contextText = "";
+    if (contextDocs.isNotEmpty) {
+      contextText = "\n\nContexto relevante encontrado:\n${contextDocs.map((d) => "- $d").join("\n")}";
+    }
+
+    // 2. Simulate generation with context awareness
+    final response = "Entendido. Basado en tu consulta '$prompt' y en mi memoria:$contextText\n\n"
+        "Aquí está mi análisis:\n"
+        "1. He consultado la base de conocimientos local.\n"
+        "2. He encontrado ${contextDocs.length} referencias relevantes.\n"
+        "3. Como soy un agente local seguro, tus datos no salen del dispositivo.\n\n"
+        "¿Necesitas ayuda con algún registro médico específico?";
+
+    for (var i = 0; i < response.length; i++) {
+      await Future.delayed(const Duration(milliseconds: 30));
+      yield response[i];
+    }
+  }
+}
