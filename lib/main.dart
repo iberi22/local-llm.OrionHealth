@@ -1,19 +1,11 @@
 import 'package:flutter/material.dart';
 import 'core/di/injection.dart';
 import 'core/theme/cyber_theme.dart';
+import 'features/dashboard/home_dashboard_page.dart';
 import 'features/health_record/presentation/pages/health_record_staging_page.dart';
 import 'features/health_report/presentation/pages/reports_page.dart';
 import 'features/user_profile/presentation/pages/user_profile_page.dart';
 import 'package:isar_agent_memory/isar_agent_memory.dart';
-
-// Placeholder pages
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('Home Page')));
-  }
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,7 +40,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
-    const HomePage(),
+    const HomeDashboardPage(),
     const ReportsPage(),
     const HealthRecordStagingPage(),
     const UserProfilePage(),
@@ -57,10 +49,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
