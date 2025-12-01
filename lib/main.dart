@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/di/injection.dart';
 import 'core/theme/cyber_theme.dart';
+import 'features/auth/application/bloc/auth_cubit.dart';
+import 'features/auth/presentation/auth_gate.dart';
 import 'features/dashboard/home_dashboard_page.dart';
 import 'features/health_record/presentation/pages/health_record_staging_page.dart';
 import 'features/health_report/presentation/pages/reports_page.dart';
@@ -19,12 +22,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'OrionHealth',
-      theme: CyberTheme.darkTheme,
-      darkTheme: CyberTheme.darkTheme,
-      themeMode: ThemeMode.dark,
-      home: const MainNavigationPage(),
+    return BlocProvider(
+      create: (_) => getIt<AuthCubit>()..checkAuthStatus(),
+      child: MaterialApp(
+        title: 'OrionHealth',
+        theme: CyberTheme.darkTheme,
+        darkTheme: CyberTheme.darkTheme,
+        themeMode: ThemeMode.dark,
+        home: AuthGate(child: const MainNavigationPage()),
+      ),
     );
   }
 }

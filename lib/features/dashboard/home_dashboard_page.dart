@@ -1,12 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:orionhealth_health/core/theme/cyber_theme.dart';
 import 'package:orionhealth_health/core/widgets/glassmorphic_card.dart';
 import 'package:orionhealth_health/features/local_agent/presentation/chat_page.dart';
 import 'package:orionhealth_health/features/local_agent/infrastructure/llm_service.dart';
 import 'package:orionhealth_health/core/di/injection.dart';
+import 'package:orionhealth_health/features/dashboard/application/bloc/dashboard_cubit.dart';
+import 'package:orionhealth_health/features/user_profile/domain/entities/user_profile.dart';
+import 'package:orionhealth_health/features/allergies/domain/entities/allergy.dart';
 
 class HomeDashboardPage extends StatelessWidget {
   const HomeDashboardPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => getIt<DashboardCubit>()..loadDashboard(),
+      child: const _HomeDashboardView(),
+    );
+  }
+}
+
+class _HomeDashboardView extends StatelessWidget {
+  const _HomeDashboardView();
 
   @override
   Widget build(BuildContext context) {
@@ -15,46 +32,36 @@ class HomeDashboardPage extends StatelessWidget {
         leading: const Icon(Icons.local_hospital, color: CyberTheme.secondary),
         title: const Text('Resumen Médico'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              context.read<DashboardCubit>().loadDashboard();
+            },
+          ),
           IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Profile Header
-            _ProfileHeader(),
-            const SizedBox(height: 24),
-            // Critical Alert Card
-            _CriticalAlertCard(),
-            const SizedBox(height: 24),
-            // Health Metrics Grid
-            Text(
-              'Métricas de Salud',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: CyberTheme.textDark,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _HealthMetricsGrid(),
-            const SizedBox(height: 24),
-            // Quick Actions
-            Text(
-              'Acciones Rápidas',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: CyberTheme.textDark,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _QuickActionsSection(context),
-            const SizedBox(height: 24),
-            // Recent Activity
-            _RecentActivitySection(),
-          ],
-        ),
+      body: BlocBuilder<DashboardCubit, DashboardState>(
+        builder: (context, state) {
+          if (state is DashboardLoading) {
+            return const Center(
+              child: CircularProgressIndicator(color: CyberTheme.secondary),
+            );
+          }
+
+          if (state is DashboardError) {
+            return _buildErrorContent(context, state);
+          }
+
+          if (state is DashboardLoaded) {
+            return _buildLoadedContent(context, state);
+          }
+
+          // Initial state - show loading
+          return const Center(
+            child: CircularProgressIndicator(color: CyberTheme.secondary),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -73,52 +80,100 @@ class HomeDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _QuickActionsSection(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        _QuickActionCard(
-          icon: Icons.chat_bubble_outline,
-          label: 'AI Assistant',
-          color: CyberTheme.secondary,
-          onTap: () {
-            Navigator.push(
+  Widget _buildErrorContent(BuildContext context, DashboardError state) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+          const SizedBox(height: 16),
+          Text(
+            'Error al cargar datos',
+            style: Theme.of(
               context,
-              MaterialPageRoute(
-                builder: (context) => ChatPage(llmService: getIt<LlmService>()),
+            ).textTheme.titleMedium?.copyWith(color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              state.message,
+              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              context.read<DashboardCubit>().loadDashboard();
+            },
+            child: const Text('Reintentar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadedContent(BuildContext context, DashboardLoaded state) {
+    return RefreshIndicator(
+      onRefresh: () => context.read<DashboardCubit>().loadDashboard(),
+      color: CyberTheme.secondary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Profile Header
+            _ProfileHeader(userProfile: state.userProfile),
+            const SizedBox(height: 24),
+            // Critical Alert Card
+            if (state.criticalAllergies.isNotEmpty)
+              _CriticalAlertCard(allergies: state.criticalAllergies),
+            if (state.criticalAllergies.isNotEmpty) const SizedBox(height: 24),
+            // Health Metrics Grid
+            Text(
+              'Métricas de Salud',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: CyberTheme.textDark,
+                fontWeight: FontWeight.bold,
               ),
-            );
-          },
+            ),
+            const SizedBox(height: 16),
+            _HealthMetricsGrid(metrics: state.healthMetrics),
+            const SizedBox(height: 24),
+            // Quick Actions
+            Text(
+              'Acciones Rápidas',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: CyberTheme.textDark,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _QuickActionsSection(parentContext: context),
+            const SizedBox(height: 24),
+            // Recent Activity
+            _RecentActivitySection(recentActivity: state.recentActivity),
+          ],
         ),
-        _QuickActionCard(
-          icon: Icons.favorite_border,
-          label: 'Salud',
-          color: Colors.red[400]!,
-          onTap: () {},
-        ),
-        _QuickActionCard(
-          icon: Icons.insights,
-          label: 'Estadísticas',
-          color: CyberTheme.primary,
-          onTap: () {},
-        ),
-        _QuickActionCard(
-          icon: Icons.medical_services_outlined,
-          label: 'Medicamentos',
-          color: Colors.purple[400]!,
-          onTap: () {},
-        ),
-      ],
+      ),
     );
   }
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader();
+  final UserProfile? userProfile;
+
+  const _ProfileHeader({this.userProfile});
 
   @override
   Widget build(BuildContext context) {
+    final name = userProfile?.name ?? 'Usuario';
+    final age = userProfile?.age;
+    final uniqueId = userProfile?.uniqueId ?? 'ORION-000';
+    final avatarUrl = userProfile?.avatarUrl;
+
     return GlassmorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -130,12 +185,17 @@ class _ProfileHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: CyberTheme.secondary, width: 2),
-                image: const DecorationImage(
-                  image: NetworkImage(
-                    "https://lh3.googleusercontent.com/aida-public/AB6AXuAIpUPoUs4Oykl6RpdGHalhqjetooQ-sZ9LobLpgbAVOnhYpaq8N5vqWkwgyY-cwthjBPnowELtGGRPqp12k_sBKhk9r7bW6YJUQtkoABO21_fgw5CmQOHkZHg4bwR4J3Ib9VVx_cMtcEqRsl2k7jkw26FOnsrjgs9XHtK8O9g-VGixxrv0pXd_frqH_xsPyWS6rXzsNUlO_BSRmHdplSNegvbJxMUdDddekMquxJ3gn2_oK2Z4ToEq_mHl-FAK5E-ejgnRZzRJt7_M",
-                  ),
-                  fit: BoxFit.cover,
-                ),
+                color: Colors.grey[800],
+              ),
+              child: ClipOval(
+                child: avatarUrl != null && avatarUrl.isNotEmpty
+                    ? Image.network(
+                        avatarUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildAvatarPlaceholder(name),
+                      )
+                    : _buildAvatarPlaceholder(name),
               ),
             ),
             const SizedBox(width: 16),
@@ -143,9 +203,9 @@ class _ProfileHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Alex Reyes',
-                    style: TextStyle(
+                  Text(
+                    name,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -153,14 +213,14 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Edad: 34',
+                    age != null ? 'Edad: $age' : 'Edad: --',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.7),
                     ),
                   ),
                   Text(
-                    'ID: ORION-734',
+                    'ID: $uniqueId',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.7),
@@ -174,10 +234,31 @@ class _ProfileHeader extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildAvatarPlaceholder(String name) {
+    final initials = name.isNotEmpty
+        ? name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join()
+        : '?';
+    return Container(
+      color: CyberTheme.primary.withOpacity(0.3),
+      child: Center(
+        child: Text(
+          initials.toUpperCase(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _CriticalAlertCard extends StatelessWidget {
-  const _CriticalAlertCard();
+  final List<Allergy> allergies;
+
+  const _CriticalAlertCard({required this.allergies});
 
   @override
   Widget build(BuildContext context) {
@@ -217,20 +298,32 @@ class _CriticalAlertCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Alergia: Penicilina',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Reacción anafiláctica severa. Evitar todos los derivados.',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
-              fontSize: 14,
+          ...allergies.map(
+            (allergy) => Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Alergia: ${allergy.name ?? "Desconocida"}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (allergy.reaction != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      allergy.reaction!,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
@@ -240,7 +333,9 @@ class _CriticalAlertCard extends StatelessWidget {
 }
 
 class _HealthMetricsGrid extends StatelessWidget {
-  const _HealthMetricsGrid();
+  final HealthMetricsSnapshot metrics;
+
+  const _HealthMetricsGrid({required this.metrics});
 
   @override
   Widget build(BuildContext context) {
@@ -251,25 +346,37 @@ class _HealthMetricsGrid extends StatelessWidget {
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       childAspectRatio: 0.9,
-      children: const [
+      children: [
         _MetricCard(
           icon: Icons.bloodtype,
-          value: 'A+',
+          value: metrics.bloodType ?? '--',
           label: 'Tipo de Sangre',
         ),
         _MetricCard(
           icon: Icons.monitor_weight_outlined,
-          value: '75 kg',
+          value: metrics.formattedWeight,
           label: 'Peso',
         ),
-        _MetricCard(icon: Icons.height, value: '182 cm', label: 'Altura'),
-        _MetricCard(icon: Icons.favorite, value: '72', label: 'Pulso'),
+        _MetricCard(
+          icon: Icons.height,
+          value: metrics.formattedHeight,
+          label: 'Altura',
+        ),
+        _MetricCard(
+          icon: Icons.favorite,
+          value: metrics.formattedHeartRate,
+          label: 'Pulso',
+        ),
         _MetricCard(
           icon: Icons.thermostat,
-          value: '36.5°C',
+          value: metrics.formattedTemperature,
           label: 'Temperatura',
         ),
-        _MetricCard(icon: Icons.water_drop, value: '120/80', label: 'Presión'),
+        _MetricCard(
+          icon: Icons.water_drop,
+          value: metrics.formattedBloodPressure,
+          label: 'Presión',
+        ),
       ],
     );
   }
@@ -324,10 +431,14 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _RecentActivitySection extends StatelessWidget {
-  const _RecentActivitySection();
+  final RecentActivity recentActivity;
+
+  const _RecentActivitySection({required this.recentActivity});
 
   @override
   Widget build(BuildContext context) {
+    final dateFormat = DateFormat('dd/MM/yyyy');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -339,23 +450,27 @@ class _RecentActivitySection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        const _ActivityItem(
+        _ActivityItem(
           icon: Icons.event_available,
           title: 'Última Consulta',
-          subtitle: 'Dr. Evelyn Reed',
-          date: '15/08/2023',
+          subtitle: recentActivity.lastConsultation?.doctorName ?? '--',
+          date: recentActivity.lastConsultation?.dateTime != null
+              ? dateFormat.format(recentActivity.lastConsultation!.dateTime!)
+              : '--',
         ),
-        const _ActivityItem(
+        _ActivityItem(
           icon: Icons.calendar_month,
           title: 'Próxima Cita',
-          subtitle: 'Cardiología',
-          date: '20/12/2023',
+          subtitle: recentActivity.nextAppointment?.specialty ?? '--',
+          date: recentActivity.nextAppointment?.dateTime != null
+              ? dateFormat.format(recentActivity.nextAppointment!.dateTime!)
+              : '--',
         ),
-        const _ActivityItem(
+        _ActivityItem(
           icon: Icons.medication,
           title: 'Medicación Actual',
-          subtitle: 'Omeprazol 20mg',
-          date: 'Diario',
+          subtitle: recentActivity.currentMedication?.displayName ?? '--',
+          date: recentActivity.currentMedication?.frequencyLabel ?? '--',
         ),
       ],
     );
@@ -423,6 +538,59 @@ class _ActivityItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _QuickActionsSection extends StatelessWidget {
+  final BuildContext parentContext;
+
+  const _QuickActionsSection({required this.parentContext});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _QuickActionCard(
+          icon: Icons.chat_bubble_outline,
+          label: 'AI Assistant',
+          color: CyberTheme.secondary,
+          onTap: () {
+            Navigator.push(
+              parentContext,
+              MaterialPageRoute(
+                builder: (context) => ChatPage(llmService: getIt<LlmService>()),
+              ),
+            );
+          },
+        ),
+        _QuickActionCard(
+          icon: Icons.favorite_border,
+          label: 'Salud',
+          color: Colors.red[400]!,
+          onTap: () {
+            // TODO: Navigate to health details
+          },
+        ),
+        _QuickActionCard(
+          icon: Icons.insights,
+          label: 'Estadísticas',
+          color: CyberTheme.primary,
+          onTap: () {
+            // TODO: Navigate to statistics
+          },
+        ),
+        _QuickActionCard(
+          icon: Icons.medical_services_outlined,
+          label: 'Medicamentos',
+          color: Colors.purple[400]!,
+          onTap: () {
+            // TODO: Navigate to medications list
+          },
+        ),
+      ],
     );
   }
 }
